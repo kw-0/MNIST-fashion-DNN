@@ -1,2 +1,2 @@
 # MNIST-fashion-DNN
- I made a neural network using only numpy that can use the MNIST fashion dataset
+ I made a neural network using only numpy (and random) that can classify clothing based on the MNIST fashion dataset! :)
