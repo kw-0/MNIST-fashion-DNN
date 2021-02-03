@@ -11,8 +11,8 @@ test_data = np.array(raw_test)      # test data array
 labels = ['T-Shirt', 'Trousers', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot']
 
 E = np.e
-EPOCHS = 2
-BATCH_SIZE = 10
+EPOCHS = 10
+BATCH_SIZE = 4
 
 
 class DenseLayer:
@@ -76,26 +76,26 @@ output_activation = SoftmaxActivation()
 
 for EPOCH in range(EPOCHS):
     clothing_idx = np.random.randint(0, train_data.shape[0])
-
-    ground_truth = train_data[clothing_idx, 0]
-
-    input_layer.forward_pass(train_data[clothing_idx:clothing_idx+BATCH_SIZE])
-    actviation_lay1.forward_pass(input_layer.output)
-
-    layer_2.forward_pass(actviation_lay1.output)
-    actviation_lay2.forward_pass(layer_2.output)
-
-    layer_3.forward_pass(actviation_lay2.output)
-    actviation_lay3.forward_pass(layer_3.output)
-
-    layer_4.forward_pass(actviation_lay3.output)
-    actviation_lay4.forward_pass(layer_4.output)
-
-    output_layer.forward_pass(actviation_lay4.output)
-    output_activation.forward_pass(output_layer.output)
-
     print(f'Epoch {EPOCH + 1}:')
+
     for BATCH in range(BATCH_SIZE):
+        ground_truth = train_data[clothing_idx, 0]   # the first 
+
+        input_layer.forward_pass(train_data[clothing_idx:clothing_idx + BATCH_SIZE])
+        actviation_lay1.forward_pass(input_layer.output)
+
+        layer_2.forward_pass(actviation_lay1.output)
+        actviation_lay2.forward_pass(layer_2.output)
+
+        layer_3.forward_pass(actviation_lay2.output)
+        actviation_lay3.forward_pass(layer_3.output)
+
+        layer_4.forward_pass(actviation_lay3.output)
+        actviation_lay4.forward_pass(layer_4.output)
+
+        output_layer.forward_pass(actviation_lay4.output)
+        output_activation.forward_pass(output_layer.output)
+
         print(f'Index of clothing item: {clothing_idx}')
 
         prediction_idx = np.argmax(output_activation.output)
