@@ -5,20 +5,19 @@ import numpy as np
 raw_train = pd.read_csv('/Users/kylenwilliams/Fashion MNIST/fashion-mnist_train.csv')   # Your path to data file
 raw_test = pd.read_csv('/Users/kylenwilliams/Fashion MNIST/fashion-mnist_test.csv')     # Your path to data file
 
-# note to self; don't forget to randomize data
 train_data = np.array(raw_train)    # train data array
 test_data = np.array(raw_test)      # test data array
 
-labels = ['t-shirt', 'trousers', 'pullover', 'dress', 'coat',
-          'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
+labels = ['T-Shirt', 'Trousers', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot']
 
 E = np.e
-EPOCHS = 1
+EPOCHS = 2
+BATCH_SIZE = 10
 
 
 class DenseLayer:
     def __init__(self, nrn_inputs, nrn_num):
-        self.weights = 0.01 * np.random.randn(nrn_inputs, nrn_num)
+        self.weights = 0.01 * np.random.randn(nrn_inputs, nrn_num)  # Already transposed weights matrix
         self.biases = np.zeros((1, nrn_num))
 
     def forward_pass(self, inputs):
@@ -54,10 +53,10 @@ class SoftmaxActivation:
         pass
 
 
-# class Loss:
-
-
-# just some testing and messing with the class and forward pass:
+class CategoricalCrossEntropyLoss:
+    def forward(self, pred, truth):
+        loss = -np.log(pred, truth)
+        self.output = loss
 
 
 input_layer = DenseLayer(785, 785)
@@ -74,11 +73,13 @@ actviation_lay4 = ReLuActivation()
 output_layer = DenseLayer(64, 9)
 output_activation = SoftmaxActivation()
 
-for EPOCH in range(EPOCHS):
-    clothing_idx = np.random.randint(0, 60000)
-    print(f'Index of chosen clothing item: {clothing_idx}')
 
-    input_layer.forward_pass(train_data[clothing_idx])
+for EPOCH in range(EPOCHS):
+    clothing_idx = np.random.randint(0, train_data.shape[0])
+
+    ground_truth = train_data[clothing_idx, 0]
+
+    input_layer.forward_pass(train_data[clothing_idx:clothing_idx+BATCH_SIZE])
     actviation_lay1.forward_pass(input_layer.output)
 
     layer_2.forward_pass(actviation_lay1.output)
@@ -93,12 +94,22 @@ for EPOCH in range(EPOCHS):
     output_layer.forward_pass(actviation_lay4.output)
     output_activation.forward_pass(output_layer.output)
 
-    prediction = labels[np.argmax(output_activation.output)]
-    true_label = labels[train_data[clothing_idx, 0]]
-    print(f'Guess: {prediction}, the true label is {true_label}')
-    print(f'probability distribution across labels {output_activation.output}')
+    print(f'Epoch {EPOCH + 1}:')
+    for BATCH in range(BATCH_SIZE):
+        print(f'Index of clothing item: {clothing_idx}')
 
-    if EPOCH/1000 == 1:
+        prediction_idx = np.argmax(output_activation.output)
+        prediction = labels[prediction_idx]
+        true_label = labels[train_data[clothing_idx, 0]]
+
+        prob_dist = output_activation.output[BATCH]
+
+        print(f'{BATCH+1}- Guess: {prediction}, Truth: {true_label}')
+        print(f'Probability distribution across labels: \n {prob_dist}')
+        print('')
+        clothing_idx += 1
+
+    if EPOCH/5000 == 1:
         img = train_data[clothing_idx, 0:784].reshape((28, 28))  # reshaping the flattened array to so plt can show it
         pltp.imshow(img, cmap='gray')
         pltp.show()
