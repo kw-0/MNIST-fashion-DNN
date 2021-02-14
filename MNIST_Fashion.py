@@ -10,9 +10,11 @@ test_data = np.array(raw_test)      # test data array
 
 labels = ['T-Shirt', 'Trousers', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot']
 
+
 E = np.e
-EPOCHS = 10
-BATCH_SIZE = 4
+EPOCHS = 100
+BATCH_SIZE = 8
+BETA = 1e-7
 
 
 class DenseLayer:
@@ -53,16 +55,48 @@ class SoftmaxActivation:
         pass
 
 
-class CategoricalCrossEntropyLoss:
-    def forward(self, pred, truth):
-        loss = -np.log(pred, truth)
-        self.output = loss
+class GeneralLoss:
+    def calculate(self, batch_loss):
+        # sample_losses = self.forward_pass(output, y)
 
+        # calculate mean loss
+        data_loss = np.mean(batch_loss)
+
+        return data_loss
+
+
+class CategoricalCrossEntropyLoss(GeneralLoss):
+    def forward_pass(self, y_pred, y_true):
+        correct_confidences = 0
+
+        samples = len(y_pred)
+
+        # Clip data to prevent log(0)
+        # Clip both sides to not drag to anything
+        y_pred_clipped = np.clip(y_pred, BETA, 1 - BETA)
+
+        # the data here is sparse but I want that delicious scalability so one-hot is included
+        if len(y_true.shape) == 1:  # if sparse
+            correct_confidences = y_pred_clipped[
+                range(samples),
+                y_true
+            ]
+
+        elif len(y_true.shape) == 2:    # if one-hot
+            correct_confidences = np.sum(
+                y_pred_clipped * y_true,
+                axis=1
+            )
+
+        negative_log_likelihoods = -np.log(correct_confidences)
+        return negative_log_likelihoods
+
+
+# instantiating (what a weird word) the neural net
 
 input_layer = DenseLayer(785, 785)
 actviation_lay1 = ReLuActivation()
 
-# three hidden layers
 layer_2 = DenseLayer(785, 64)
 actviation_lay2 = ReLuActivation()
 layer_3 = DenseLayer(64, 64)
@@ -70,17 +104,26 @@ actviation_lay3 = ReLuActivation()
 layer_4 = DenseLayer(64, 64)
 actviation_lay4 = ReLuActivation()
 
-output_layer = DenseLayer(64, 9)
+loss_obj = CategoricalCrossEntropyLoss()
+
+output_layer = DenseLayer(64, 10)
 output_activation = SoftmaxActivation()
+
+choice_frequency_dict = {'T-Shirt': 0, 'Trousers': 0, 'Pullover': 0, 'Dress': 0, 'Coat': 0, 'Sandal': 0, 'Shirt': 0, 'Sneaker': 0, 'Bag': 0, 'Ankle Boot': 0}
 
 
 for EPOCH in range(EPOCHS):
-    clothing_idx = np.random.randint(0, train_data.shape[0])
+    clothing_idx = np.random.randint(0, train_data.shape[0]-BATCH_SIZE)  # -BATCH_SIZE because if it chooses like
+    # 5999, there aren't ten more after it so it can't calculate anything with that
+
+    # puts all the truths into an array
+    ground_truths = []
+    for data_point in range(BATCH_SIZE):
+        current_sample = train_data[clothing_idx + data_point]
+        ground_truths.append(current_sample[0])
+
     print(f'Epoch {EPOCH + 1}:')
-
     for BATCH in range(BATCH_SIZE):
-        ground_truth = train_data[clothing_idx, 0]   # the first 
-
         input_layer.forward_pass(train_data[clothing_idx:clothing_idx + BATCH_SIZE])
         actviation_lay1.forward_pass(input_layer.output)
 
@@ -93,23 +136,42 @@ for EPOCH in range(EPOCHS):
         layer_4.forward_pass(actviation_lay3.output)
         actviation_lay4.forward_pass(layer_4.output)
 
-        output_layer.forward_pass(actviation_lay4.output)
-        output_activation.forward_pass(output_layer.output)
+        output_layer.forward_pass(actviation_lay4.output)    # The original output will look skewed slightly to
+        output_activation.forward_pass(output_layer.output)  # shirt/sandal, but that's simply because they are
+        # squarely in the middle of the array, and the probability distribution is normal
 
         print(f'Index of clothing item: {clothing_idx}')
 
-        prediction_idx = np.argmax(output_activation.output)
-        prediction = labels[prediction_idx]
-        true_label = labels[train_data[clothing_idx, 0]]
+        prediction = np.max(output_activation.output)
+        prediction_label = labels[int(np.argmax(output_activation.output))]
 
+        # ground_truth = train_data[clothing_idx, 0]
+        true_label = labels[train_data[clothing_idx, 0]]
         prob_dist = output_activation.output[BATCH]
 
-        print(f'{BATCH+1}- Guess: {prediction}, Truth: {true_label}')
+        loss = loss_obj.forward_pass(output_activation.output, np.array(ground_truths))
+
+        print(f'{BATCH+1}- Guess: {prediction_label}, Truth: {true_label}')
         print(f'Probability distribution across labels: \n {prob_dist}')
+        print(f'Loss: {loss[BATCH]}')
         print('')
         clothing_idx += 1
 
-    if EPOCH/5000 == 1:
-        img = train_data[clothing_idx, 0:784].reshape((28, 28))  # reshaping the flattened array to so plt can show it
-        pltp.imshow(img, cmap='gray')
-        pltp.show()
+        choice_frequency_dict.update({prediction_label: choice_frequency_dict[prediction_label] + 1})
+
+    choice_probability_dict = choice_frequency_dict.copy()
+
+    total_iters = sum(choice_probability_dict.values())
+    for label, val in choice_frequency_dict.items():
+        choice_probability_dict.update({label: f'{(val/total_iters)*100}%'})
+
+    print(f'Average loss for this batch: {loss_obj.calculate(loss)}')
+    print(f'Choice frequency: {choice_frequency_dict}')
+
+    # in the end this should be about even because the data has an equal number of each clothing type
+    print(f'Choice probabilistic frequency: {choice_probability_dict}')
+
+    # if EPOCH+1/EPOCHS == 1:
+    #     img = train_data[clothing_idx, 0:784].reshape((28, 28))   # reshaping the flattened array to so plt can show it
+    #     pltp.imshow(img, cmap='gray')
+    #     pltp.show()
