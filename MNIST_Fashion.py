@@ -13,7 +13,7 @@ labels = ['T-Shirt', 'Trousers', 'Pullover', 'Dress', 'Coat',
 
 E = np.e
 EPOCHS = 5
-BATCH_SIZE = 2
+BATCH_SIZE = 8
 CLIPPER = 1e-7
 
 
@@ -158,9 +158,14 @@ class ActivationSoftmaxLossCategoricalCrossEntropy:
         self.dinputs = self.dinputs / samples
 
 
-class AdamOptimizer:
-    def forward_pass(self, grad):
-        pass
+class SGDOptimizer:
+    def __init__(self, learning_rate=1.0):
+        self.learning_rate = learning_rate
+
+    def optimize(self, layer):
+        # negative because derivative tells direction of steepest ascent so opposite of that leads to minimum
+        layer.weights += -self.learning_rate * layer.dweights
+        layer.biases += -self.learning_rate * layer.dbiases
 
 
 # fun colors to make reading the output a little easier
@@ -184,13 +189,16 @@ activation_lay4 = ReLuActivation()
 output_layer = DenseLayer(64, 10)
 softmax_activation_loss = ActivationSoftmaxLossCategoricalCrossEntropy()
 
+optimizer = SGDOptimizer()
 
-choice_frequency_dict = {'T-Shirt': 0, 'Trousers': 0, 'Pullover': 0, 'Dress': 0, 'Coat': 0,
-                         'Sandal': 0, 'Shirt': 0, 'Sneaker': 0, 'Bag': 0, 'Ankle Boot': 0}
 
 for EPOCH in range(EPOCHS):
     clothing_idx = np.random.randint(0, train_data.shape[0] - BATCH_SIZE)  # -BATCH_SIZE because if it chooses like
     # 5999, there aren't ten more after it so it can't calculate anything with that
+
+    # resets it every epoch
+    choice_frequency_dict = {'T-Shirt': 0, 'Trousers': 0, 'Pullover': 0, 'Dress': 0, 'Coat': 0,
+                             'Sandal': 0, 'Shirt': 0, 'Sneaker': 0, 'Bag': 0, 'Ankle Boot': 0}
 
     # # puts all the truths into an array
     ground_truths = []
@@ -208,6 +216,7 @@ for EPOCH in range(EPOCHS):
 
     print(Color.BLUE + f'Epoch {EPOCH + 1}:' + Color.END)
     for BATCH in range(BATCH_SIZE):
+
         # truth value for our specific data point
         true_idx = ground_truths[BATCH]
         true_label = labels[true_idx]
@@ -232,6 +241,7 @@ for EPOCH in range(EPOCHS):
         print('Index of clothing item:', clothing_idx)
 
         # finds which the neural net predicted
+        print(softmax_activation_loss.output)
         prediction = np.argmax(softmax_activation_loss.output)
         prediction_label = labels[int(prediction)]
         prob_dist = softmax_activation_loss.output[BATCH]
@@ -252,9 +262,9 @@ for EPOCH in range(EPOCHS):
     choice_probability_dict = choice_frequency_dict.copy()
 
     # updates dict of labels with percentages of how often they are chosen
-    total_iters = sum(choice_probability_dict.values())
+    total_guesses = sum(choice_probability_dict.values())
     for label, val in choice_frequency_dict.items():
-        choice_probability_dict.update({label: f'{(val / total_iters) * 100}%'})
+        choice_probability_dict.update({label: f'{(val / total_guesses) * 100}%'})
 
     print('\nAverage loss for this batch: ', loss)
     print(f'Accuracy: {accuracy}%')
@@ -278,6 +288,12 @@ for EPOCH in range(EPOCHS):
 
     activation_lay1.backward_pass(layer_2.dinputs)
     input_layer.backward_pass(activation_lay1.dinputs)
+
+    optimizer.optimize(input_layer)
+    optimizer.optimize(layer_2)
+    optimizer.optimize(layer_3)
+    optimizer.optimize(layer_4)
+    optimizer.optimize(output_layer)
 
     # if you're on the last epoch show that img
     if EPOCH+1/EPOCHS == 1:
