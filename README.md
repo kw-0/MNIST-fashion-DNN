@@ -1,4 +1,4 @@
 # MNIST-fashion-DNN
  I made a neural network using only numpy (and random) that can classify clothing based on the MNIST fashion dataset! :)
 
-The code currently here is some old stuff that doesn't work properly, I'm fixing it, but haven't updated the repo. Just a heads-up
+But, I couldn't quite get it to work properly. I am considering scrapping it. I was going to move everything into a model class and clean it up nicely and further optimize the code, but I've decided that this would be a waste of time if it doesn't work properly. I plan on moving on to some more useful and impactful projects using torch or tf (probably torch, openAI uses torch). This one has served it's purpose as a learning experience and as a introduction to neural nets, but now it might be time to move on. Thanks for checking it out though! Also if you see some glaring issue that is making my NN behave this way I'd love for you to clone or pull and help me out! Thanks!
